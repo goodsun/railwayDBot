@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Tester</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .endpoint {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #444;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .response {
+            background: #2a2a2a;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        h1 { color: #4CAF50; }
+        h2 { color: #fff; font-size: 18px; }
+        .method {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .get { background: #61affe; }
+        .post { background: #49cc90; }
+    </style>
+</head>
+<body>
+    <h1>API Tester</h1>
+
+    <div class="endpoint">
+        <h2><span class="method get">GET</span> /</h2>
+        <button onclick="testGet('/')">Send Request</button>
+        <div class="response" id="response-root"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2><span class="method get">GET</span> /health</h2>
+        <button onclick="testGet('/health')">Send Request</button>
+        <div class="response" id="response-health"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2><span class="method post">POST</span> /webhook</h2>
+        <textarea id="webhook-body" rows="5" placeholder='{"message": "Hello", "user": "test"}'>{
+  "message": "Hello, Bot!",
+  "user": "testuser"
+}</textarea>
+        <button onclick="testPost('/webhook')">Send Request</button>
+        <div class="response" id="response-webhook"></div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        async function testGet(endpoint) {
+            const responseId = `response-${endpoint.replace('/', '') || 'root'}`;
+            try {
+                const response = await fetch(API_BASE + endpoint);
+                const data = await response.json();
+                document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById(responseId).textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testPost(endpoint) {
+            const responseId = `response-${endpoint.replace('/', '')}`;
+            const bodyElement = document.getElementById(`${endpoint.replace('/', '')}-body`);
+            
+            try {
+                const response = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: bodyElement.value
+                });
+                const data = await response.json();
+                document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById(responseId).textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
