@@ -325,9 +325,21 @@ client.on('interactionCreate', async interaction => {
           return;
         }
         
-        // Discord IDを取得
+        // Discord IDとアバター情報を取得
         const discordId = interaction.user.id;
         const discordUsername = interaction.user.username;
+        const avatarHash = interaction.user.avatar;
+        
+        // アバターURLを生成（Discord CDN）
+        let avatarUrl = null;
+        if (avatarHash) {
+          const extension = avatarHash.startsWith('a_') ? 'gif' : 'png';
+          avatarUrl = `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${extension}?size=256`;
+        } else {
+          // デフォルトアバターURL
+          const defaultAvatarNumber = (BigInt(discordId) >> 22n) % 6n;
+          avatarUrl = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNumber}.png`;
+        }
         
         // 一意のトークンを生成（Discord ID + タイムスタンプのハッシュ）
         const token = ethers.id(`${discordId}-${Date.now()}`).slice(0, 16);
@@ -344,6 +356,7 @@ client.on('interactionCreate', async interaction => {
         global.registrationSessions[token] = {
           discordId,
           discordUsername,
+          avatarUrl,
           address: userAddress,
           createdAt: Date.now(),
           expiresAt: Date.now() + 10 * 60 * 1000 // 10分後に期限切れ
