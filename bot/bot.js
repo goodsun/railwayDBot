@@ -40,7 +40,15 @@ const commands = [
   
   new SlashCommandBuilder()
     .setName('help')
-    .setDescription('使用可能なコマンドを表示します')
+    .setDescription('使用可能なコマンドを表示します'),
+  
+  new SlashCommandBuilder()
+    .setName('register')
+    .setDescription('Discord IDとEOAアドレスを紐付けます')
+    .addStringOption(option =>
+      option.setName('address')
+        .setDescription('あなたのEOAアドレス（例: 0x123...）')
+        .setRequired(true))
 ].map(command => command.toJSON());
 
 // コマンドの登録
@@ -292,12 +300,86 @@ client.on('interactionCreate', async interaction => {
               name: '/help',
               value: 'このヘルプメッセージを表示します',
               inline: false
+            },
+            {
+              name: '/register <address>',
+              value: 'Discord IDとEOAアドレスを紐付けます',
+              inline: false
             }
           ],
           footer: { text: 'NFT Info Bot - Powered by Railway' }
         };
         
         await interaction.reply({ embeds: [helpEmbed] });
+        break;
+
+      case 'register':
+        const userAddress = interaction.options.getString('address');
+        
+        // アドレスの検証
+        if (!ethers.isAddress(userAddress)) {
+          await interaction.reply({
+            content: '❌ 無効なEOAアドレスです。正しいアドレスを入力してください。',
+            ephemeral: true
+          });
+          return;
+        }
+        
+        // Discord IDを取得
+        const discordId = interaction.user.id;
+        const discordUsername = interaction.user.username;
+        
+        // 一意のトークンを生成（Discord ID + タイムスタンプのハッシュ）
+        const token = ethers.id(`${discordId}-${Date.now()}`).slice(0, 16);
+        
+        // 署名用URLを生成
+        const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const registrationUrl = `${baseUrl}/register/${token}`;
+        
+        // セッション情報を保存（実際の実装では Redis や DB を使用）
+        if (!global.registrationSessions) {
+          global.registrationSessions = {};
+        }
+        global.registrationSessions[token] = {
+          discordId,
+          discordUsername,
+          address: userAddress,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 10 * 60 * 1000 // 10分後に期限切れ
+        };
+        
+        // 埋め込みメッセージを作成
+        const registerEmbed = {
+          title: '🔗 EOAアドレスの登録',
+          description: '以下のリンクをクリックして、MetaMaskで署名してください。',
+          color: 0x5865F2,
+          fields: [
+            {
+              name: 'Discord ID',
+              value: `${discordUsername} (${discordId})`,
+              inline: true
+            },
+            {
+              name: 'EOAアドレス',
+              value: `\`${userAddress}\``,
+              inline: true
+            },
+            {
+              name: '登録URL',
+              value: `[こちらをクリック](${registrationUrl})`,
+              inline: false
+            }
+          ],
+          footer: { 
+            text: 'このリンクは10分間有効です'
+          },
+          timestamp: new Date()
+        };
+        
+        await interaction.reply({
+          embeds: [registerEmbed],
+          ephemeral: true // 本人のみに表示
+        });
         break;
     }
   } catch (error) {

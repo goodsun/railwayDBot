@@ -35,6 +35,9 @@ if (process.env.NODE_ENV !== 'production') {
   app.use('/viewer', express.static('viewer'));
 }
 
+// 登録ページ用の静的ファイル
+app.use('/register', express.static('public'));
+
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Discord Bot API is running',
@@ -117,6 +120,72 @@ app.post('/webhook', (req, res) => {
     echo: message,
     user: user || 'anonymous',
     processed_at: new Date().toISOString()
+  });
+});
+
+// 登録ページのエンドポイント
+app.get('/register/:token', (req, res) => {
+  const { token } = req.params;
+  
+  // セッション情報の確認
+  if (!global.registrationSessions || !global.registrationSessions[token]) {
+    return res.status(404).send('Invalid or expired registration link');
+  }
+  
+  const session = global.registrationSessions[token];
+  
+  // 有効期限の確認
+  if (Date.now() > session.expiresAt) {
+    delete global.registrationSessions[token];
+    return res.status(410).send('Registration link has expired');
+  }
+  
+  // 登録ページのHTMLを返す
+  res.sendFile(__dirname + '/public/register.html');
+});
+
+// 登録セッション情報の取得
+app.get('/api/register/:token', (req, res) => {
+  const { token } = req.params;
+  
+  if (!global.registrationSessions || !global.registrationSessions[token]) {
+    return res.status(404).json({ error: 'Invalid or expired token' });
+  }
+  
+  const session = global.registrationSessions[token];
+  
+  if (Date.now() > session.expiresAt) {
+    delete global.registrationSessions[token];
+    return res.status(410).json({ error: 'Token has expired' });
+  }
+  
+  res.json({
+    discordId: session.discordId,
+    discordUsername: session.discordUsername,
+    address: session.address
+  });
+});
+
+// 登録の完了
+app.post('/api/register/:token', async (req, res) => {
+  const { token } = req.params;
+  const { txHash } = req.body;
+  
+  if (!global.registrationSessions || !global.registrationSessions[token]) {
+    return res.status(404).json({ error: 'Invalid or expired token' });
+  }
+  
+  const session = global.registrationSessions[token];
+  
+  // トランザクション確認後、セッションを削除
+  delete global.registrationSessions[token];
+  
+  res.json({
+    success: true,
+    message: 'Registration completed',
+    discordId: session.discordId,
+    address: session.address,
+    txHash
   });
 });
 

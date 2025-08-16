@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord ID × EOA 登録</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #2c2f33;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: #36393f;
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #ffffff;
+            margin-bottom: 24px;
+            text-align: center;
+            font-size: 24px;
+        }
+        
+        .info-section {
+            background-color: #2f3136;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .label {
+            color: #8e9297;
+            font-size: 14px;
+        }
+        
+        .value {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .button {
+            width: 100%;
+            padding: 12px 24px;
+            background-color: #5865f2;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+        }
+        
+        .button:hover:not(:disabled) {
+            background-color: #4752c4;
+        }
+        
+        .button:disabled {
+            background-color: #4e5058;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            color: #43b581;
+        }
+        
+        .status.error {
+            color: #f04747;
+        }
+        
+        .status.info {
+            color: #faa61a;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .network-warning {
+            background-color: #f04747;
+            color: #ffffff;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Discord ID × EOA 登録</h1>
+        
+        <div class="network-warning" id="networkWarning">
+            ⚠️ 間違ったネットワークに接続されています。Polygon Mainnetに切り替えてください。
+        </div>
+        
+        <div class="info-section">
+            <div class="info-row">
+                <span class="label">Discord ID</span>
+                <span class="value" id="discordId">読み込み中...</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Discord ユーザー名</span>
+                <span class="value" id="discordUsername">読み込み中...</span>
+            </div>
+            <div class="info-row">
+                <span class="label">EOAアドレス</span>
+                <span class="value" id="address">読み込み中...</span>
+            </div>
+        </div>
+        
+        <button class="button" id="connectButton" onclick="connectAndRegister()">
+            MetaMaskで接続して登録
+        </button>
+        
+        <div class="status" id="status"></div>
+    </div>
+    
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script>
+        // グローバル変数
+        let sessionData = null;
+        const POLYGON_CHAIN_ID = '0x89'; // 137 in hex
+        const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // TODO: 実際のコントラクトアドレスに置き換える
+        
+        // コントラクトABI（登録機能のみ）
+        const REGISTRATION_ABI = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "discordId",
+                        "type": "string"
+                    }
+                ],
+                "name": "registerDiscordId",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+        
+        // URLからトークンを取得
+        function getTokenFromUrl() {
+            const pathParts = window.location.pathname.split('/');
+            return pathParts[pathParts.length - 1];
+        }
+        
+        // セッション情報を取得
+        async function loadSessionData() {
+            const token = getTokenFromUrl();
+            
+            try {
+                const response = await fetch(`/api/register/${token}`);
+                
+                if (!response.ok) {
+                    throw new Error(response.status === 404 ? 'Invalid or expired link' : 'Failed to load session');
+                }
+                
+                sessionData = await response.json();
+                
+                // UI更新
+                document.getElementById('discordId').textContent = sessionData.discordId;
+                document.getElementById('discordUsername').textContent = sessionData.discordUsername;
+                document.getElementById('address').textContent = sessionData.address;
+                
+            } catch (error) {
+                showStatus('error', `エラー: ${error.message}`);
+                document.getElementById('connectButton').disabled = true;
+            }
+        }
+        
+        // ステータス表示
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = message;
+        }
+        
+        // MetaMask接続と登録
+        async function connectAndRegister() {
+            if (!window.ethereum) {
+                showStatus('error', 'MetaMaskがインストールされていません');
+                return;
+            }
+            
+            if (!sessionData) {
+                showStatus('error', 'セッション情報が読み込まれていません');
+                return;
+            }
+            
+            const button = document.getElementById('connectButton');
+            button.disabled = true;
+            
+            try {
+                showStatus('info', '<span class="spinner"></span>MetaMaskに接続中...');
+                
+                // アカウント接続要求
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                
+                const userAccount = accounts[0].toLowerCase();
+                const expectedAccount = sessionData.address.toLowerCase();
+                
+                // アドレス確認
+                if (userAccount !== expectedAccount) {
+                    throw new Error(`Wrong account. Expected: ${sessionData.address}`);
+                }
+                
+                // ネットワーク確認
+                const chainId = await window.ethereum.request({ 
+                    method: 'eth_chainId' 
+                });
+                
+                if (chainId !== POLYGON_CHAIN_ID) {
+                    document.getElementById('networkWarning').style.display = 'block';
+                    
+                    // Polygon Mainnetへの切り替えを要求
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: POLYGON_CHAIN_ID }],
+                        });
+                        document.getElementById('networkWarning').style.display = 'none';
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            // ネットワークが存在しない場合は追加
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: POLYGON_CHAIN_ID,
+                                    chainName: 'Polygon Mainnet',
+                                    nativeCurrency: {
+                                        name: 'MATIC',
+                                        symbol: 'MATIC',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: ['https://polygon-rpc.com'],
+                                    blockExplorerUrls: ['https://polygonscan.com']
+                                }],
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                showStatus('info', '<span class="spinner"></span>トランザクションを送信中...');
+                
+                // プロバイダーとコントラクトの初期化
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, REGISTRATION_ABI, signer);
+                
+                // トランザクション送信
+                const tx = await contract.registerDiscordId(sessionData.discordId);
+                
+                showStatus('info', '<span class="spinner"></span>トランザクションを確認中...');
+                
+                // トランザクション確認待ち
+                const receipt = await tx.wait();
+                
+                // 登録完了をサーバーに通知
+                const token = getTokenFromUrl();
+                await fetch(`/api/register/${token}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        txHash: receipt.transactionHash
+                    })
+                });
+                
+                showStatus('success', `✅ 登録が完了しました！<br>Transaction: ${receipt.transactionHash}`);
+                button.textContent = '登録完了';
+                
+            } catch (error) {
+                console.error('Registration error:', error);
+                
+                let errorMessage = 'エラーが発生しました';
+                if (error.code === 4001) {
+                    errorMessage = 'ユーザーがリクエストを拒否しました';
+                } else if (error.message.includes('Wrong account')) {
+                    errorMessage = '間違ったアカウントです。登録時のアドレスでログインしてください';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                showStatus('error', `❌ ${errorMessage}`);
+                button.disabled = false;
+            }
+        }
+        
+        // ページ読み込み時
+        window.addEventListener('load', () => {
+            loadSessionData();
+        });
+        
+        // MetaMaskアカウント変更検知
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length === 0) {
+                    showStatus('info', 'MetaMaskから切断されました');
+                } else if (sessionData && accounts[0].toLowerCase() !== sessionData.address.toLowerCase()) {
+                    showStatus('error', '間違ったアカウントです');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
