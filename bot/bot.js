@@ -333,7 +333,8 @@ client.on('interactionCreate', async interaction => {
         const token = ethers.id(`${discordId}-${Date.now()}`).slice(0, 16);
         
         // 署名用URLを生成
-        const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const port = process.env.PORT || 3000;
+        const baseUrl = process.env.APP_URL || `http://localhost:${port}`;
         const registrationUrl = `${baseUrl}/register/${token}`;
         
         // セッション情報を保存（実際の実装では Redis や DB を使用）
