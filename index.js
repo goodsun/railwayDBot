@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
+const { ethers } = require('ethers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,18 @@ try {
 } catch (error) {
   console.error('Failed to load build info:', error.message);
 }
+
+// Polygon Mainnet RPC設定
+const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
+const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
+
+// ERC721 ABI (tokenURIメソッドのみ)
+const ERC721_ABI = [
+  'function tokenURI(uint256 tokenId) view returns (string)',
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function ownerOf(uint256 tokenId) view returns (address)'
+];
 
 app.use(express.json());
 
@@ -46,6 +59,48 @@ app.get('/version', (req, res) => {
     node_version: process.version,
     railway_deployment_id: process.env.RAILWAY_DEPLOYMENT_ID || null
   });
+});
+
+app.get('/tokeninfo/:ca/:tokenId', async (req, res) => {
+  const { ca, tokenId } = req.params;
+  
+  try {
+    // アドレスの検証
+    if (!ethers.isAddress(ca)) {
+      return res.status(400).json({ error: 'Invalid contract address' });
+    }
+    
+    // トークンIDの検証
+    const tokenIdBN = BigInt(tokenId);
+    
+    // コントラクトインスタンスを作成
+    const contract = new ethers.Contract(ca, ERC721_ABI, provider);
+    
+    // トークン情報を取得
+    const [tokenURI, name, symbol, owner] = await Promise.all([
+      contract.tokenURI(tokenIdBN),
+      contract.name().catch(() => 'Unknown'),
+      contract.symbol().catch(() => 'Unknown'),
+      contract.ownerOf(tokenIdBN).catch(() => null)
+    ]);
+    
+    res.json({
+      contract_address: ca,
+      token_id: tokenId,
+      token_uri: tokenURI,
+      name,
+      symbol,
+      owner,
+      network: 'polygon-mainnet'
+    });
+    
+  } catch (error) {
+    console.error('Token info error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch token info',
+      message: error.message 
+    });
+  }
 });
 
 app.post('/webhook', (req, res) => {

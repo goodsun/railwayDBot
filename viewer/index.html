@@ -39,6 +39,26 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        .metadata {
+            background: #333;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+        }
+        .metadata h3 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+        .metadata img {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .metadata p {
+            margin: 5px 0;
+        }
         input, textarea {
             width: 100%;
             padding: 8px;
@@ -84,6 +104,15 @@
     </div>
 
     <div class="endpoint">
+        <h2><span class="method get">GET</span> /tokeninfo/:ca/:tokenId</h2>
+        <input type="text" id="tokeninfo-ca" placeholder="Contract Address (e.g., 0x72A0...)" value="0x72A02d559435319bD77462690E202a28c2Ba8623">
+        <input type="text" id="tokeninfo-id" placeholder="Token ID" value="26">
+        <button onclick="testTokenInfo()">Send Request</button>
+        <div class="response" id="response-tokeninfo"></div>
+        <div id="metadata-display"></div>
+    </div>
+
+    <div class="endpoint">
         <h2><span class="method post">POST</span> /webhook</h2>
         <textarea id="webhook-body" rows="5" placeholder='{"message": "Hello", "user": "test"}'>{
   "message": "Hello, Bot!",
@@ -123,6 +152,71 @@
                 document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
             } catch (error) {
                 document.getElementById(responseId).textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testTokenInfo() {
+            const ca = document.getElementById('tokeninfo-ca').value;
+            const tokenId = document.getElementById('tokeninfo-id').value;
+            const metadataDisplay = document.getElementById('metadata-display');
+            
+            if (!ca || !tokenId) {
+                document.getElementById('response-tokeninfo').textContent = 'Error: Contract address and token ID are required';
+                metadataDisplay.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/tokeninfo/${ca}/${tokenId}`);
+                const data = await response.json();
+                document.getElementById('response-tokeninfo').textContent = JSON.stringify(data, null, 2);
+                
+                // token_uriがあればメタデータを取得
+                if (data.token_uri) {
+                    metadataDisplay.innerHTML = '<p>Loading metadata...</p>';
+                    
+                    try {
+                        // IPFSゲートウェイを使用
+                        let metadataUrl = data.token_uri;
+                        if (metadataUrl.startsWith('ipfs://')) {
+                            metadataUrl = metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                        }
+                        
+                        const metadataResponse = await fetch(metadataUrl);
+                        const metadata = await metadataResponse.json();
+                        
+                        // メタデータを表示
+                        let html = '<div class="metadata"><h3>NFT Metadata</h3>';
+                        
+                        if (metadata.name) {
+                            html += `<p><strong>Name:</strong> ${metadata.name}</p>`;
+                        }
+                        
+                        if (metadata.description) {
+                            html += `<p><strong>Description:</strong> ${metadata.description}</p>`;
+                        }
+                        
+                        if (metadata.image) {
+                            let imageUrl = metadata.image;
+                            if (imageUrl.startsWith('ipfs://')) {
+                                imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                            }
+                            html += `<p><strong>Image:</strong></p><img src="${imageUrl}" alt="${metadata.name || 'NFT Image'}" />`;
+                        }
+                        
+                        html += '</div>';
+                        metadataDisplay.innerHTML = html;
+                        
+                    } catch (metaError) {
+                        metadataDisplay.innerHTML = `<div class="metadata"><p>Error loading metadata: ${metaError.message}</p></div>`;
+                    }
+                } else {
+                    metadataDisplay.innerHTML = '';
+                }
+                
+            } catch (error) {
+                document.getElementById('response-tokeninfo').textContent = `Error: ${error.message}`;
+                metadataDisplay.innerHTML = '';
             }
         }
     </script>
