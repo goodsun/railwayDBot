@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discord ID × EOA 登録</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #2c2f33;
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background-color: #36393f;
+        border-radius: 8px;
+        padding: 32px;
+        max-width: 480px;
+        width: 100%;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      }
+
+      h1 {
+        color: #ffffff;
+        margin-bottom: 24px;
+        text-align: center;
+        font-size: 24px;
+      }
+
+      .info-section {
+        background-color: #2f3136;
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      .avatar-section {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: #2f3136;
+        overflow: hidden;
+      }
+
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .user-info {
+        flex: 1;
+      }
+
+      .username {
+        font-size: 20px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 4px;
+      }
+
+      .user-id {
+        font-size: 14px;
+        color: #8e9297;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .info-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .label {
+        color: #8e9297;
+        font-size: 14px;
+      }
+
+      .value {
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 500;
+        word-break: break-all;
+      }
+
+      .button {
+        width: 100%;
+        padding: 12px 24px;
+        background-color: #5865f2;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 20px;
+      }
+
+      .button:hover:not(:disabled) {
+        background-color: #4752c4;
+      }
+
+      .button:disabled {
+        background-color: #4e5058;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .status {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+
+      .status div {
+        background-color: #2f3136;
+        border-radius: 4px;
+        padding: 12px;
+        display: inline-block;
+      }
+
+      .status.success {
+        color: #43b581;
+      }
+
+      .status.error {
+        color: #f04747;
+      }
+
+      .status.info {
+        color: #faa61a;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .network-warning {
+        background-color: #f04747;
+        color: #ffffff;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔗 Discord ID × EOA 登録</h1>
+
+      <div class="network-warning" id="networkWarning">
+        ⚠️ 間違ったネットワークに接続されています。<span
+          id="expectedNetworkName"
+        ></span
+        >に切り替えてください。
+      </div>
+
+      <div id="currentInfoSection" style="display: none; margin-bottom: 20px">
+        <h3 style="font-size: 16px; margin-bottom: 12px; color: #ffffff">
+          📋 現在の登録情報
+        </h3>
+        <div
+          class="avatar-section"
+          style="background-color: #2f3136; border-radius: 4px; padding: 16px"
+        >
+          <div class="avatar" id="currentAvatarContainer">
+            <img
+              id="currentAvatarImage"
+              src=""
+              alt="Current Discord Avatar"
+              style="display: none"
+            />
+          </div>
+          <div class="user-info">
+            <div class="username" id="currentUsername">読み込み中...</div>
+            <div class="user-id" id="currentUserDiscordId">読み込み中...</div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 10px">
+          <span style="color: #faa61a; font-size: 20px">↓</span>
+        </div>
+      </div>
+
+      <div id="newInfoSection">
+        <h3
+          style="
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #43b581;
+            display: none;
+          "
+          id="updateTitle"
+        >
+          ✨ 更新後の情報
+        </h3>
+        <div class="avatar-section">
+          <div class="avatar" id="avatarContainer">
+            <img
+              id="avatarImage"
+              src=""
+              alt="Discord Avatar"
+              style="display: none"
+            />
+          </div>
+          <div class="user-info">
+            <div class="username" id="discordUsername">読み込み中...</div>
+            <div class="user-id" id="discordId">読み込み中...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-row">
+          <span class="label">EOAアドレス</span>
+          <span class="value" id="address">読み込み中...</span>
+        </div>
+      </div>
+
+      <button class="button" id="connectButton" onclick="connectAndRegister()">
+        MetaMaskで接続して登録
+      </button>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+      // グローバル変数
+      let sessionData = null;
+
+      // サーバーから注入されるネットワーク設定
+      const NETWORK_CONFIG = {
+        chainId: "0x" + parseInt("<%= NETWORK_CONFIG.chainId %>").toString(16), // 10進数を16進数に変換
+        chainName: "<%= NETWORK_CONFIG.chainName %>",
+        rpcUrl: "<%= NETWORK_CONFIG.rpcUrl %>",
+        currencySymbol: "<%= NETWORK_CONFIG.currencySymbol %>",
+        blockExplorerUrl: "<%= NETWORK_CONFIG.blockExplorerUrl %>",
+      };
+
+      const CONTRACT_ADDRESS = "<%= CONTRACT_ADDRESS %>"; // サーバーから注入される
+
+      console.log("Network Config:", NETWORK_CONFIG);
+
+      // Registration ABI
+      const REGISTRATION_ABI = [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "balanceOf",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "hasMinted",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "user",
+              type: "address",
+            },
+          ],
+          name: "getUserInfo",
+          outputs: [
+            {
+              internalType: "string",
+              name: "memberName",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "discordId",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "avatarImage",
+              type: "string",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "mint",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "memberName",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "discordId",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "avatarImage",
+              type: "string",
+            },
+          ],
+          name: "setUserInfo",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ];
+
+      // 画像をbase64に変換
+      async function convertImageToBase64(url) {
+        try {
+          // CORS対応のため、プロキシ経由で画像を取得
+          const response = await fetch(
+            `/api/proxy-image?url=${encodeURIComponent(url)}`
+          );
+          const blob = await response.blob();
+
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error("Failed to convert image to base64:", error);
+          // フォールバックとして空文字を返す
+          return "";
+        }
+      }
+
+      // URLからトークンを取得
+      function getTokenFromUrl() {
+        const pathParts = window.location.pathname.split("/");
+        return pathParts[pathParts.length - 1];
+      }
+
+      // セッション情報を取得
+      async function loadSessionData() {
+        const token = getTokenFromUrl();
+
+        try {
+          const response = await fetch(`/api/register/${token}`);
+
+          if (!response.ok) {
+            throw new Error(
+              response.status === 404
+                ? "Invalid or expired link"
+                : "Failed to load session"
+            );
+          }
+
+          sessionData = await response.json();
+
+          // UI更新
+          document.getElementById("discordId").textContent =
+            sessionData.discordId;
+          document.getElementById("discordUsername").textContent =
+            sessionData.discordUsername;
+          document.getElementById("address").textContent = sessionData.address;
+
+          // アバター画像を表示
+          if (sessionData.avatarUrl) {
+            const avatarImg = document.getElementById("avatarImage");
+            avatarImg.src = sessionData.avatarUrl;
+            avatarImg.style.display = "block";
+
+            // アバター画像をbase64に変換して保存
+            convertImageToBase64(sessionData.avatarUrl)
+              .then((base64) => {
+                sessionData.avatarBase64 = base64;
+              })
+              .catch((err) => {
+                console.error("Failed to convert avatar to base64:", err);
+              });
+          }
+
+          // 既存の登録情報を確認
+          await checkExistingUserInfo();
+        } catch (error) {
+          showStatus("error", `エラー: ${error.message}`);
+          document.getElementById("connectButton").disabled = true;
+        }
+      }
+
+      // 既存のユーザー情報を確認
+      async function checkExistingUserInfo() {
+        if (!sessionData || !sessionData.address) return;
+
+        try {
+          // 簡易的なプロバイダーを作成（読み取り専用）
+          const provider = new ethers.providers.JsonRpcProvider(
+            NETWORK_CONFIG.rpcUrl
+          );
+          const contract = new ethers.Contract(
+            CONTRACT_ADDRESS,
+            REGISTRATION_ABI,
+            provider
+          );
+
+          // mint状態を確認
+          const hasMinted = await contract.hasMinted(sessionData.address);
+
+          if (hasMinted) {
+            // 既存の情報を取得
+            const [currentName, currentDiscordId, currentAvatarImage] =
+              await contract.getUserInfo(sessionData.address);
+
+            // 現在の情報を表示
+            document.getElementById("currentUsername").textContent =
+              currentName || "未設定";
+            document.getElementById("currentUserDiscordId").textContent =
+              currentDiscordId || "未設定";
+
+            // 既存のアバター画像を表示
+            if (currentAvatarImage && currentAvatarImage.startsWith("data:")) {
+              const currentAvatar =
+                document.getElementById("currentAvatarImage");
+              currentAvatar.src = currentAvatarImage;
+              currentAvatar.style.display = "block";
+            }
+
+            document.getElementById("currentInfoSection").style.display =
+              "block";
+            document.getElementById("updateTitle").style.display = "block";
+
+            // ボタンテキストを変更
+            document.getElementById("connectButton").textContent =
+              "MetaMaskで接続して情報を更新";
+          }
+        } catch (error) {
+          console.error("Error checking existing user info:", error);
+          // エラーが発生しても処理を続行
+        }
+      }
+
+      // ステータス表示
+      function showStatus(type, message) {
+        const statusEl = document.getElementById("status");
+        statusEl.className = `status ${type}`;
+        statusEl.innerHTML = message;
+      }
+
+      // MetaMask接続と登録
+      async function connectAndRegister() {
+        if (!window.ethereum) {
+          showStatus("error", "MetaMaskがインストールされていません");
+          return;
+        }
+
+        if (!sessionData) {
+          showStatus("error", "セッション情報が読み込まれていません");
+          return;
+        }
+
+        const button = document.getElementById("connectButton");
+        button.disabled = true;
+
+        try {
+          showStatus(
+            "info",
+            '<span class="spinner"></span>MetaMaskに接続中...'
+          );
+
+          // アカウント接続要求
+          const accounts = await window.ethereum.request({
+            method: "eth_requestAccounts",
+          });
+
+          const userAccount = accounts[0];
+          const expectedAccount = sessionData.address;
+
+          console.log("Connected account:", userAccount);
+          console.log("Expected account:", expectedAccount);
+          console.log(
+            "Match:",
+            userAccount.toLowerCase() === expectedAccount.toLowerCase()
+          );
+
+          // アドレス確認（大文字小文字を無視して比較）
+          if (userAccount.toLowerCase() !== expectedAccount.toLowerCase()) {
+            throw new Error(
+              `Wrong account. Connected: ${userAccount}, Expected: ${expectedAccount}`
+            );
+          }
+
+          // ネットワーク確認
+          const chainId = await window.ethereum.request({
+            method: "eth_chainId",
+          });
+
+          console.log("Current Chain ID:", chainId);
+          console.log("Expected Chain ID:", NETWORK_CONFIG.chainId);
+
+          if (chainId !== NETWORK_CONFIG.chainId) {
+            document.getElementById("expectedNetworkName").textContent =
+              NETWORK_CONFIG.chainName;
+            document.getElementById("networkWarning").style.display = "block";
+
+            // 指定されたネットワークへの切り替えを要求
+            try {
+              await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: NETWORK_CONFIG.chainId }],
+              });
+              document.getElementById("networkWarning").style.display = "none";
+            } catch (switchError) {
+              if (switchError.code === 4902) {
+                // ネットワークが存在しない場合は追加
+                const addNetworkParams = {
+                  chainId: NETWORK_CONFIG.chainId,
+                  chainName: NETWORK_CONFIG.chainName,
+                  nativeCurrency: {
+                    name: NETWORK_CONFIG.currencySymbol,
+                    symbol: NETWORK_CONFIG.currencySymbol,
+                    decimals: 18,
+                  },
+                  rpcUrls: [NETWORK_CONFIG.rpcUrl],
+                };
+
+                // ブロックエクスプローラーがある場合のみ追加
+                if (NETWORK_CONFIG.blockExplorerUrl) {
+                  addNetworkParams.blockExplorerUrls = [
+                    NETWORK_CONFIG.blockExplorerUrl,
+                  ];
+                }
+
+                await window.ethereum.request({
+                  method: "wallet_addEthereumChain",
+                  params: [addNetworkParams],
+                });
+              } else {
+                throw switchError;
+              }
+            }
+          }
+
+          // プロバイダーとコントラクトの初期化
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const signer = provider.getSigner();
+          const contract = new ethers.Contract(
+            CONTRACT_ADDRESS,
+            REGISTRATION_ABI,
+            signer
+          );
+
+          // 現在のRPCプロバイダー情報を表示
+          const network = await provider.getNetwork();
+          console.log("Provider Network:", network);
+
+          showStatus(
+            "info",
+            '<span class="spinner"></span>NFTの状態を確認中...'
+          );
+
+          // コントラクトアドレスのデバッグ情報
+          console.log("Contract Address:", CONTRACT_ADDRESS);
+          console.log("User Account:", userAccount);
+
+          // mint済みかどうかを確認
+          let hasMinted = false;
+          try {
+            hasMinted = await contract.hasMinted(userAccount);
+            console.log("Has Minted:", hasMinted);
+          } catch (checkError) {
+            console.error("Error checking mint status:", checkError);
+            // hasMintedでエラーが出た場合、balanceOfで代替確認
+            try {
+              const balance = await contract.balanceOf(userAccount);
+              hasMinted = balance > 0;
+              console.log(
+                "Balance:",
+                balance.toString(),
+                "Has Minted:",
+                hasMinted
+              );
+            } catch (balanceError) {
+              console.error("Error checking balance:", balanceError);
+              throw new Error(
+                "スマートコントラクトへの接続に失敗しました。アドレスを確認してください。"
+              );
+            }
+          }
+
+          let tx;
+          if (!hasMinted) {
+            // 未mintの場合はまずmint
+            showStatus("info", '<span class="spinner"></span>NFTをmint中...');
+            try {
+              // ガスリミットを手動で設定してmintを試行
+              tx = await contract.mint({ gasLimit: 500000 });
+              await tx.wait();
+            } catch (mintError) {
+              console.error("Mint error details:", mintError);
+
+              // エラーの詳細を解析
+              if (mintError.reason) {
+                throw new Error(`Mint failed: ${mintError.reason}`);
+              } else if (
+                mintError.error &&
+                mintError.error.data &&
+                mintError.error.data.message
+              ) {
+                throw new Error(`Mint failed: ${mintError.error.data.message}`);
+              } else {
+                throw mintError;
+              }
+            }
+
+            // mint後にユーザー情報を設定
+            showStatus(
+              "info",
+              '<span class="spinner"></span>ユーザー情報を設定中...'
+            );
+            const avatarBase64 = sessionData.avatarBase64 || "";
+            tx = await contract.setUserInfo(
+              sessionData.discordUsername,
+              sessionData.discordId,
+              avatarBase64
+            );
+          } else {
+            // mint済みの場合は直接更新
+            showStatus(
+              "info",
+              '<span class="spinner"></span>ユーザー情報を更新中...'
+            );
+            const avatarBase64 = sessionData.avatarBase64 || "";
+            tx = await contract.setUserInfo(
+              sessionData.discordUsername,
+              sessionData.discordId,
+              avatarBase64
+            );
+          }
+
+          showStatus(
+            "info",
+            '<span class="spinner"></span>トランザクションを確認中...'
+          );
+
+          // トランザクション確認待ち
+          const receipt = await tx.wait();
+
+          // 登録完了をサーバーに通知
+          const token = getTokenFromUrl();
+          await fetch(`/api/register/${token}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              txHash: receipt.transactionHash,
+            }),
+          });
+
+          // トランザクションエクスプローラーのURL
+          let txUrl = receipt.transactionHash;
+          if (NETWORK_CONFIG.blockExplorerUrl) {
+            txUrl = `<a href="${NETWORK_CONFIG.blockExplorerUrl}/tx/${
+              receipt.transactionHash
+            }" target="_blank" style="color: #43b581; text-decoration: underline;">${receipt.transactionHash.slice(
+              0,
+              10
+            )}...</a>`;
+          }
+          showStatus(
+            "success",
+            `✅ 登録が完了しました！<br>Transaction: ${txUrl}`
+          );
+          button.textContent = "登録完了";
+        } catch (error) {
+          console.error("Registration error:", error);
+
+          let errorMessage = "エラーが発生しました";
+          if (error.code === 4001) {
+            errorMessage = "ユーザーがトランザクションを拒否しました";
+          } else if (error.message.includes("Wrong account")) {
+            errorMessage =
+              "間違ったアカウントです。登録時のアドレスでログインしてください";
+          } else if (error.message.includes("insufficient funds")) {
+            errorMessage = "ガス代が不足しています。MATICを入金してください";
+          } else if (error.message.includes("user rejected")) {
+            errorMessage = "ユーザーがリクエストを拒否しました";
+          } else if (error.message.includes("mint")) {
+            errorMessage =
+              "Mint処理でエラーが発生しました。すでにmint済みの可能性があります";
+          } else if (error.message) {
+            // エラーメッセージを短く表示
+            errorMessage =
+              error.message.length > 100
+                ? error.message.substring(0, 100) + "..."
+                : error.message;
+          }
+
+          showStatus("error", `❌ ${errorMessage}`);
+          button.disabled = false;
+        }
+      }
+
+      // モバイル端末の判定とMetaMaskアプリへのリダイレクト
+      function checkMobileAndRedirect() {
+        // モバイル端末の判定
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // MetaMask内のブラウザかどうかの判定
+        const isMetaMaskBrowser = window.ethereum && window.ethereum.isMetaMask;
+        
+        if (isMobile && !isMetaMaskBrowser) {
+          // 現在のURLを取得
+          const currentUrl = window.location.href;
+          // httpsプロトコルを削除
+          const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
+          
+          // MetaMaskアプリのディープリンクURL
+          const metamaskUrl = `https://metamask.app.link/dapp/${urlWithoutProtocol}`;
+          
+          // リダイレクト前に確認メッセージを表示
+          const redirectMessage = document.createElement('div');
+          redirectMessage.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2f3136;
+            padding: 24px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 90%;
+            z-index: 1000;
+          `;
+          redirectMessage.innerHTML = `
+            <h3 style="margin-bottom: 16px;">📱 MetaMaskアプリが必要です</h3>
+            <p style="margin-bottom: 20px;">この操作にはMetaMaskアプリが必要です。<br>MetaMaskアプリで開きますか？</p>
+            <button onclick="window.location.href='${metamaskUrl}'" style="
+              background: #5865f2;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 4px;
+              font-size: 16px;
+              cursor: pointer;
+              margin-right: 10px;
+            ">MetaMaskで開く</button>
+            <button onclick="this.parentElement.remove()" style="
+              background: #4e5058;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 4px;
+              font-size: 16px;
+              cursor: pointer;
+            ">キャンセル</button>
+          `;
+          
+          document.body.appendChild(redirectMessage);
+          
+          // 背景をオーバーレイ
+          const overlay = document.createElement('div');
+          overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+          `;
+          overlay.onclick = () => {
+            redirectMessage.remove();
+            overlay.remove();
+          };
+          document.body.appendChild(overlay);
+        }
+      }
+
+      // ページ読み込み時
+      window.addEventListener("load", () => {
+        checkMobileAndRedirect();
+        loadSessionData();
+      });
+
+      // MetaMaskアカウント変更検知
+      if (window.ethereum) {
+        window.ethereum.on("accountsChanged", (accounts) => {
+          if (accounts.length === 0) {
+            showStatus("info", "MetaMaskから切断されました");
+          } else if (
+            sessionData &&
+            accounts[0].toLowerCase() !== sessionData.address.toLowerCase()
+          ) {
+            showStatus("error", "間違ったアカウントです");
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
