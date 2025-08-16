@@ -247,7 +247,7 @@ http://localhost:3000/viewer
 |--------|------|-------------|
 | PORT | サーバーポート | 3000 |
 | NODE_ENV | 実行環境 | development |
-| POLYGON_RPC_URL | Polygon RPC URL | https://polygon-rpc.com |
+| RPC_URL | ブロックチェーンRPC URL | https://polygon-rpc.com |
 | DISCORD_TOKEN | Discord Botトークン | - |
 | DISCORD_CLIENT_ID | Discord クライアントID | - |
 

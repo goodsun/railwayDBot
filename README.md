@@ -110,11 +110,33 @@ APIのヘルスチェックエンドポイント
 
 Railway は自動的に `npm start` コマンドを実行し、`PORT` 環境変数を提供します。
 
+## 環境変数
+
+| 変数名 | 説明 | デフォルト値 |
+|--------|------|-------------|
+| PORT | サーバーポート | 3000 |
+| NODE_ENV | 実行環境 | development |
+| RPC_URL | ブロックチェーンRPC URL | https://polygon-rpc.com |
+| DISCORD_TOKEN | Discord Botトークン | - |
+| DISCORD_CLIENT_ID | Discord クライアントID | - |
+| DISCORD_GUILD_ID | Discord サーバーID | - |
+
+### 他のチェーンへの接続例
+
+```env
+# Ethereum Mainnet
+RPC_URL=https://eth.llamarpc.com
+
+# Arbitrum One
+RPC_URL=https://arb1.arbitrum.io/rpc
+
+# Base
+RPC_URL=https://mainnet.base.org
+```
+
 ## 今後の実装予定
 
-- Discord Bot との連携
-- Discord API との統合
-- コマンド処理システム
+- 複数チェーン対応の拡張
 - データベース連携
 - 認証・認可システム
 

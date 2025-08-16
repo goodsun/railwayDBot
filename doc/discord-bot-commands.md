@@ -77,7 +77,7 @@ Botには以下の権限が必要です：
 DISCORD_TOKEN=your_bot_token
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_GUILD_ID=your_guild_id
-POLYGON_RPC_URL=https://polygon-rpc.com
+RPC_URL=https://polygon-rpc.com
 ```
 
 ## トラブルシューティング

@@ -1,9 +1,9 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { ethers } = require('ethers');
 
-// Polygon RPC設定
-const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
-const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
+// RPC設定（デフォルト: Polygon Mainnet）
+const RPC_URL = process.env.RPC_URL || 'https://polygon-rpc.com';
+const provider = new ethers.JsonRpcProvider(RPC_URL);
 
 // ERC721 ABI
 const ERC721_ABI = [
@@ -96,26 +96,81 @@ client.on('interactionCreate', async interaction => {
           
           // NFT情報を取得
           const contract = new ethers.Contract(address, ERC721_ABI, provider);
-          const [tokenURI, name, symbol, owner] = await Promise.all([
-            contract.tokenURI(tokenId),
-            contract.name().catch(() => 'Unknown'),
-            contract.symbol().catch(() => 'Unknown'),
-            contract.ownerOf(tokenId).catch(() => null)
-          ]);
+          
+          let tokenURI, name, symbol, owner;
+          let tokenExists = true;
+          
+          try {
+            // まずトークンの存在を確認（ownerOfで確認）
+            owner = await contract.ownerOf(tokenId);
+            
+            // トークンが存在する場合、他の情報を取得
+            [tokenURI, name, symbol] = await Promise.all([
+              contract.tokenURI(tokenId).catch(() => null),
+              contract.name().catch(() => 'Unknown'),
+              contract.symbol().catch(() => 'Unknown')
+            ]);
+          } catch (error) {
+            // ERC721: invalid token ID エラーの場合
+            if (error.message.includes('invalid token ID') || error.message.includes('execution reverted')) {
+              tokenExists = false;
+              // コレクション情報だけ取得
+              [name, symbol] = await Promise.all([
+                contract.name().catch(() => 'Unknown'),
+                contract.symbol().catch(() => 'Unknown')
+              ]);
+            } else {
+              throw error; // その他のエラーは再スロー
+            }
+          }
+          
+          // トークンが存在しない場合
+          if (!tokenExists) {
+            const embed = {
+              title: `❌ NFTが存在しません`,
+              color: 0xFF0000,
+              fields: [
+                { name: 'コレクション', value: `${name} (${symbol})`, inline: true },
+                { name: 'トークンID', value: tokenId.toString(), inline: true },
+                { name: 'ステータス', value: '🚫 このトークンIDは存在しません', inline: false },
+                { name: 'コントラクト', value: `\`${address}\``, inline: false }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: { text: 'NFT Info Bot' }
+            };
+            
+            await interaction.editReply({ embeds: [embed] });
+            return;
+          }
           
           // メタデータを取得
           let metadata = null;
+          let isBase64 = false;
+          
           if (tokenURI) {
-            try {
-              let metadataUrl = tokenURI;
-              if (metadataUrl.startsWith('ipfs://')) {
-                metadataUrl = metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            // base64データの場合
+            if (tokenURI.startsWith('data:')) {
+              isBase64 = true;
+              try {
+                const base64Data = tokenURI.split(',')[1];
+                const jsonString = Buffer.from(base64Data, 'base64').toString('utf-8');
+                metadata = JSON.parse(jsonString);
+              } catch (error) {
+                console.error('base64メタデータ解析エラー:', error);
               }
-              
-              const response = await fetch(metadataUrl);
-              metadata = await response.json();
-            } catch (error) {
-              console.error('メタデータ取得エラー:', error);
+            } else {
+              // 通常のURLの場合
+              try {
+                let metadataUrl = tokenURI;
+                if (metadataUrl.startsWith('ipfs://')) {
+                  metadataUrl = metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                }
+                
+                const response = await fetch(metadataUrl);
+                metadata = await response.json();
+              } catch (error) {
+                console.error('メタデータ取得エラー:', error);
+              }
             }
           }
           
@@ -128,7 +183,13 @@ client.on('interactionCreate', async interaction => {
               { name: 'トークンID', value: tokenId.toString(), inline: true },
               { name: 'ネットワーク', value: 'Polygon Mainnet', inline: true },
               { name: 'コントラクト', value: `\`${address}\``, inline: false },
-              { name: 'Token URI', value: tokenURI ? `\`${tokenURI}\`` : 'N/A', inline: false }
+              { 
+                name: 'Token URI', 
+                value: isBase64 ? 
+                  '📄 Base64エンコードされたオンチェーンデータ' : 
+                  (tokenURI ? (tokenURI.length > 1000 ? `\`${tokenURI.substring(0, 100)}...\`` : `\`${tokenURI}\``) : 'N/A'), 
+                inline: false 
+              }
             ],
             timestamp: new Date().toISOString(),
             footer: { text: 'NFT Info Bot' }
@@ -147,10 +208,29 @@ client.on('interactionCreate', async interaction => {
             }
             if (metadata.image) {
               let imageUrl = metadata.image;
-              if (imageUrl.startsWith('ipfs://')) {
-                imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+              
+              // base64画像の場合はスキップ（Discordの制限のため）
+              if (imageUrl.startsWith('data:')) {
+                embed.fields.push({ 
+                  name: '画像', 
+                  value: '🖼️ Base64エンコードされた画像データ', 
+                  inline: false 
+                });
+              } else {
+                if (imageUrl.startsWith('ipfs://')) {
+                  imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                }
+                // URLが2048文字以内の場合のみ画像を表示
+                if (imageUrl.length <= 2048) {
+                  embed.image = { url: imageUrl };
+                } else {
+                  embed.fields.push({ 
+                    name: '画像', 
+                    value: '🔗 画像URLが長すぎるため表示できません', 
+                    inline: false 
+                  });
+                }
               }
-              embed.image = { url: imageUrl };
             }
           }
           

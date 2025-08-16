@@ -16,9 +16,9 @@ try {
   console.error('Failed to load build info:', error.message);
 }
 
-// Polygon Mainnet RPC設定
-const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
-const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
+// RPC設定（デフォルト: Polygon Mainnet）
+const RPC_URL = process.env.RPC_URL || 'https://polygon-rpc.com';
+const provider = new ethers.JsonRpcProvider(RPC_URL);
 
 // ERC721 ABI (tokenURIメソッドのみ)
 const ERC721_ABI = [
