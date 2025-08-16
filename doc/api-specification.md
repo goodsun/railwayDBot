@@ -104,7 +104,9 @@ GET /version
   "branch": "main",
   "build_time": "2025-08-16T12:00:00.000Z",
   "node_version": "v18.17.0",
-  "railway_deployment_id": "dep_xxxxx"
+  "railway_deployment_id": "dep_xxxxx",
+  "discord_client_id": "1150495687598592060",
+  "discord_guild_id": "1234567890123456789"
 }
 ```
 
@@ -114,6 +116,8 @@ GET /version
 - `build_time` (string): ビルド時刻（ISO 8601形式）
 - `node_version` (string): Node.jsバージョン
 - `railway_deployment_id` (string|null): RailwayデプロイメントID
+- `discord_client_id` (string|null): Discord Bot クライアントID
+- `discord_guild_id` (string|null): Discord サーバー（ギルド）ID
 
 ---
 

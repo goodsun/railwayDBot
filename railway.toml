@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm start"
+
+[variables]
+DISCORD_CLIENT_ID = "${{DISCORD_CLIENT_ID}}"
+DISCORD_TOKEN = "${{DISCORD_TOKEN}}"
+DISCORD_GUILD_ID = "${{DISCORD_GUILD_ID}}"

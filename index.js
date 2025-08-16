@@ -58,7 +58,8 @@ app.get('/version', (req, res) => {
     build_time: buildInfo.buildTime || new Date().toISOString(),
     node_version: process.version,
     railway_deployment_id: process.env.RAILWAY_DEPLOYMENT_ID || null,
-    discord_client_id: process.env.DISCORD_CLIENT_ID || null
+    discord_client_id: process.env.DISCORD_CLIENT_ID || null,
+    discord_guild_id: process.env.DISCORD_GUILD_ID || null
   });
 });
 
