@@ -250,6 +250,8 @@ http://localhost:3000/viewer
 | RPC_URL | ブロックチェーンRPC URL | https://polygon-rpc.com |
 | DISCORD_TOKEN | Discord Botトークン | - |
 | DISCORD_CLIENT_ID | Discord クライアントID | - |
+| DISCORD_GUILD_ID | Discord サーバーID | - |
+| APP_NAME | Botのアクティビティ表示名 | railwayDBot |
 
 ### RPC制限
 

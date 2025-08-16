@@ -65,7 +65,8 @@ async function registerCommands() {
 // Botの準備完了時
 client.once('ready', () => {
   console.log(`✅ ${client.user.tag} としてログインしました！`);
-  client.user.setActivity('NFT情報を取得中...');
+  const appName = process.env.APP_NAME || 'railwayDBot';
+  client.user.setActivity(appName);
 });
 
 // インタラクション（スラッシュコマンド）の処理

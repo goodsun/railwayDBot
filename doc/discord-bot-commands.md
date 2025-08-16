@@ -78,6 +78,7 @@ DISCORD_TOKEN=your_bot_token
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_GUILD_ID=your_guild_id
 RPC_URL=https://polygon-rpc.com
+APP_NAME=railwayDBot
 ```
 
 ## トラブルシューティング

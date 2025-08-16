@@ -120,6 +120,7 @@ Railway は自動的に `npm start` コマンドを実行し、`PORT` 環境変�
 | DISCORD_TOKEN | Discord Botトークン | - |
 | DISCORD_CLIENT_ID | Discord クライアントID | - |
 | DISCORD_GUILD_ID | Discord サーバーID | - |
+| APP_NAME | Botのアクティビティ表示名 | railwayDBot |
 
 ### 他のチェーンへの接続例
 
