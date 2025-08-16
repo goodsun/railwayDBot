@@ -129,6 +129,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+// Discord Botの初期化
+const { initializeBot } = require('./bot/bot');
+
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Discord Tokenが設定されている場合のみBotを起動
+  if (process.env.DISCORD_TOKEN) {
+    console.log('Discord Botを起動中...');
+    await initializeBot();
+  } else {
+    console.log('DISCORD_TOKENが設定されていないため、Botは起動されません');
+  }
 });
