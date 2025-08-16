@@ -100,29 +100,59 @@ client.on('interactionCreate', async interaction => {
           
           let tokenURI, name, symbol, owner;
           let tokenExists = true;
+          let isValidNFT = true;
           
           try {
-            // まずトークンの存在を確認（ownerOfで確認）
-            owner = await contract.ownerOf(tokenId);
-            
-            // トークンが存在する場合、他の情報を取得
-            [tokenURI, name, symbol] = await Promise.all([
-              contract.tokenURI(tokenId).catch(() => null),
-              contract.name().catch(() => 'Unknown'),
-              contract.symbol().catch(() => 'Unknown')
+            // まずコントラクトがERC721かチェック（name/symbolの取得を試みる）
+            [name, symbol] = await Promise.all([
+              contract.name().catch(() => null),
+              contract.symbol().catch(() => null)
             ]);
-          } catch (error) {
-            // ERC721: invalid token ID エラーの場合
-            if (error.message.includes('invalid token ID') || error.message.includes('execution reverted')) {
-              tokenExists = false;
-              // コレクション情報だけ取得
-              [name, symbol] = await Promise.all([
-                contract.name().catch(() => 'Unknown'),
-                contract.symbol().catch(() => 'Unknown')
-              ]);
+            
+            // nameとsymbolが取得できない場合、NFTコントラクトではない可能性
+            if (!name && !symbol) {
+              isValidNFT = false;
             } else {
-              throw error; // その他のエラーは再スロー
+              // ownerOfでトークンの存在を確認
+              try {
+                owner = await contract.ownerOf(tokenId);
+                tokenExists = true;
+                
+                // トークンが存在する場合、tokenURIを取得
+                tokenURI = await contract.tokenURI(tokenId).catch(() => null);
+              } catch (ownerError) {
+                if (ownerError.message.includes('invalid token ID') || 
+                    ownerError.message.includes('execution reverted')) {
+                  tokenExists = false;
+                } else if (ownerError.message.includes('could not decode result data')) {
+                  // ownerOfメソッドが存在しない
+                  isValidNFT = false;
+                } else {
+                  throw ownerError;
+                }
+              }
             }
+          } catch (error) {
+            console.error('コントラクト情報取得エラー:', error);
+            isValidNFT = false;
+          }
+          
+          // 有効なNFTコントラクトでない場合
+          if (!isValidNFT) {
+            const embed = {
+              title: `❌ 無効なNFTコントラクト`,
+              color: 0xFF0000,
+              description: 'このアドレスはERC721 NFTコントラクトではないようです',
+              fields: [
+                { name: 'コントラクト', value: `\`${address}\``, inline: false },
+                { name: '詳細', value: '指定されたアドレスがNFTコントラクトであることを確認してください', inline: false }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: { text: 'NFT Info Bot' }
+            };
+            
+            await interaction.editReply({ embeds: [embed] });
+            return;
           }
           
           // トークンが存在しない場合
