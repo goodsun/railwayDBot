@@ -57,7 +57,8 @@ app.get('/version', (req, res) => {
     branch: process.env.RAILWAY_GIT_BRANCH || buildInfo.branch || 'unknown',
     build_time: buildInfo.buildTime || new Date().toISOString(),
     node_version: process.version,
-    railway_deployment_id: process.env.RAILWAY_DEPLOYMENT_ID || null
+    railway_deployment_id: process.env.RAILWAY_DEPLOYMENT_ID || null,
+    discord_client_id: process.env.DISCORD_CLIENT_ID || null
   });
 });
 
