@@ -4,12 +4,31 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
+  AttachmentBuilder,
 } = require("discord.js");
 const { ethers } = require("ethers");
+const sharp = require("sharp");
 
 // RPC設定（デフォルト: Polygon Mainnet）
 const RPC_URL = process.env.RPC_URL || "https://polygon-rpc.com";
 const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+// デフォルトのトークンコントラクトアドレス
+const TOKEN_CA = process.env.TOKEN_CA;
+if (!TOKEN_CA) {
+  console.error("TOKEN_CA環境変数が設定されていません");
+  process.exit(1);
+}
+
+// OpenSea URL生成関数
+function getOpenSeaUrl(contractAddress, tokenId, chainId = 137) {
+  // chainId 137 = Polygon
+  const baseUrl =
+    chainId === 137
+      ? "https://opensea.io/assets/matic"
+      : "https://opensea.io/assets/ethereum";
+  return `${baseUrl}/${contractAddress}/${tokenId}`;
+}
 
 // ERC721 ABI
 const ERC721_ABI = [
@@ -28,19 +47,13 @@ const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("Botの応答速度を確認します"),
+    .setDescription("Check bot response speed"),
 
   new SlashCommandBuilder()
     .setName("tokeninfo")
-    .setDescription("NFTトークンの情報を取得します")
-    .addStringOption((option) =>
-      option
-        .setName("address")
-        .setDescription("コントラクトアドレス")
-        .setRequired(true)
-    )
+    .setDescription("Get NFT token information")
     .addIntegerOption((option) =>
-      option.setName("tokenid").setDescription("トークンID").setRequired(true)
+      option.setName("tokenid").setDescription("tokenID").setRequired(true)
     ),
 
   new SlashCommandBuilder()
@@ -49,11 +62,11 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("register")
-    .setDescription("Discord IDとEOAアドレスを紐付けます")
+    .setDescription("connect DiscordID to EOA")
     .addStringOption((option) =>
       option
         .setName("address")
-        .setDescription("あなたのEOAアドレス（例: 0x123...）")
+        .setDescription("Your EOA（ex: 0x123...）")
         .setRequired(true)
     ),
 ].map((command) => command.toJSON());
@@ -94,23 +107,17 @@ client.on("interactionCreate", async (interaction) => {
       case "ping":
         const latency = Date.now() - interaction.createdTimestamp;
         await interaction.reply(
-          `Pong! レイテンシ: ${latency}ms, API: ${Math.round(client.ws.ping)}ms`
+          `Pong! speed: ${latency}ms, API: ${Math.round(client.ws.ping)}ms`
         );
         break;
 
       case "tokeninfo":
         await interaction.deferReply();
 
-        const address = interaction.options.getString("address");
         const tokenId = interaction.options.getInteger("tokenid");
+        const address = TOKEN_CA; // 環境変数から取得
 
         try {
-          // アドレスの検証
-          if (!ethers.isAddress(address)) {
-            await interaction.editReply("❌ 無効なコントラクトアドレスです");
-            return;
-          }
-
           // NFT情報を取得
           const contract = new ethers.Contract(address, ERC721_ABI, provider);
 
@@ -160,20 +167,18 @@ client.on("interactionCreate", async (interaction) => {
           // 有効なNFTコントラクトでない場合
           if (!isValidNFT) {
             const embed = {
-              title: `❌ 無効なNFTコントラクト`,
+              title: `❌ unknown NFT contract`,
               color: 0xff0000,
-              description:
-                "このアドレスはERC721 NFTコントラクトではないようです",
+              description: "This address is not an ERC721 NFT contract",
               fields: [
                 {
-                  name: "コントラクト",
+                  name: "Contract",
                   value: `\`${address}\``,
                   inline: false,
                 },
                 {
-                  name: "詳細",
-                  value:
-                    "指定されたアドレスがNFTコントラクトであることを確認してください",
+                  name: "detail",
+                  value: "Please verify this is an ERC721 contract",
                   inline: false,
                 },
               ],
@@ -188,22 +193,22 @@ client.on("interactionCreate", async (interaction) => {
           // トークンが存在しない場合
           if (!tokenExists) {
             const embed = {
-              title: `❌ NFTが存在しません`,
+              title: `❌ NFT does not exist`,
               color: 0xff0000,
               fields: [
                 {
-                  name: "コレクション",
+                  name: "Collection",
                   value: `${name} (${symbol})`,
                   inline: true,
                 },
-                { name: "トークンID", value: tokenId.toString(), inline: true },
+                { name: "TokenID", value: tokenId.toString(), inline: true },
                 {
-                  name: "ステータス",
-                  value: "🚫 このトークンIDは存在しません",
+                  name: "status",
+                  value: "🚫 This token ID does not exist",
                   inline: false,
                 },
                 {
-                  name: "コントラクト",
+                  name: "Contract",
                   value: `\`${address}\``,
                   inline: false,
                 },
@@ -255,20 +260,20 @@ client.on("interactionCreate", async (interaction) => {
           // Embedメッセージの作成
           const embed = {
             title: `${name} #${tokenId}`,
+            url: getOpenSeaUrl(address, tokenId), // 画像クリック時のジャンプ先
             color: 0x0099ff,
             fields: [
               {
-                name: "コレクション",
+                name: "Collection",
                 value: `${name} (${symbol})`,
                 inline: true,
               },
-              { name: "トークンID", value: tokenId.toString(), inline: true },
-              { name: "ネットワーク", value: "Polygon Mainnet", inline: true },
-              { name: "コントラクト", value: `\`${address}\``, inline: false },
+              { name: "TokenID", value: tokenId.toString(), inline: true },
+              { name: "Network", value: "Polygon Mainnet", inline: true },
               {
-                name: "Token URI",
+                name: "NFT Marketplace",
                 value: isBase64
-                  ? "📄 Base64エンコードされたオンチェーンデータ"
+                  ? `[view on OpenSea](${getOpenSeaUrl(address, tokenId)})`
                   : tokenURI
                   ? tokenURI.length > 1000
                     ? `\`${tokenURI.substring(0, 100)}...\``
@@ -276,14 +281,15 @@ client.on("interactionCreate", async (interaction) => {
                   : "N/A",
                 inline: false,
               },
+              { name: "Contract", value: `\`${address}\``, inline: false },
             ],
             timestamp: new Date().toISOString(),
-            footer: { text: "NFT Info Bot" },
+            footer: { text: "NFT Info" },
           };
 
           if (owner) {
             embed.fields.push({
-              name: "オーナー",
+              name: "Owner",
               value: `\`${owner}\``,
               inline: false,
             });
@@ -299,13 +305,77 @@ client.on("interactionCreate", async (interaction) => {
             if (metadata.image) {
               let imageUrl = metadata.image;
 
-              // base64画像の場合はスキップ（Discordの制限のため）
+              // base64画像の場合は添付ファイルとして処理
               if (imageUrl.startsWith("data:")) {
-                embed.fields.push({
-                  name: "画像",
-                  value: "🖼️ Base64エンコードされた画像データ",
-                  inline: false,
-                });
+                try {
+                  // データURLから画像データを抽出
+                  const matches = imageUrl.match(/^data:(.+);base64,(.+)$/);
+                  if (matches && matches[2]) {
+                    let buffer = Buffer.from(matches[2], "base64");
+                    const mimeType = matches[1];
+                    let extension = mimeType.split("/")[1] || "png";
+
+                    // SVGの場合はPNGに変換（ドット絵風）
+                    if (mimeType.includes("svg") || extension === "svg") {
+                      try {
+                        // まず元のSVGサイズでラスタライズ（ピクセルパーフェクト）
+                        const tempBuffer = await sharp(buffer, {
+                          density: 72,
+                          // SVGレンダリング時にアンチエイリアスを無効化
+                          unlimited: true,
+                        })
+                          .resize(24, 24, {
+                            // 元の想定サイズ（24x24ピクセルアート）
+                            kernel: sharp.kernel.nearest,
+                            fit: "fill",
+                          })
+                          .toBuffer();
+
+                        // その後、216x216に拡大（9倍）
+                        buffer = await sharp(tempBuffer)
+                          .resize(216, 216, {
+                            kernel: sharp.kernel.nearest, // 最近傍補間で拡大
+                            fit: "fill",
+                          })
+                          .png({
+                            compressionLevel: 9,
+                            palette: true, // パレットPNGで色数を制限
+                            quality: 100,
+                          })
+                          .toBuffer();
+                        extension = "png";
+                      } catch (conversionError) {
+                        console.error("SVG変換エラー:", conversionError);
+                        // 変換に失敗した場合はそのまま続行
+                      }
+                    }
+
+                    const filename = `nft_image_${tokenId}.${extension}`;
+                    const attachment = new AttachmentBuilder(buffer, {
+                      name: filename,
+                    });
+
+                    // embedに添付ファイルの参照を設定
+                    embed.image = { url: `attachment://${filename}` };
+
+                    // editReplyにfilesオプションを追加するためフラグを設定
+                    embed._attachments = [attachment];
+                  } else {
+                    embed.fields.push({
+                      name: "画像",
+                      value:
+                        "🖼️ Base64エンコードされた画像データ（形式が不正）",
+                      inline: false,
+                    });
+                  }
+                } catch (error) {
+                  console.error("Base64画像の処理エラー:", error);
+                  embed.fields.push({
+                    name: "画像",
+                    value: "🖼️ Base64エンコードされた画像データ（処理エラー）",
+                    inline: false,
+                  });
+                }
               } else {
                 if (imageUrl.startsWith("ipfs://")) {
                   imageUrl = imageUrl.replace(
@@ -327,7 +397,13 @@ client.on("interactionCreate", async (interaction) => {
             }
           }
 
-          await interaction.editReply({ embeds: [embed] });
+          // 添付ファイルがある場合はfilesオプションを追加
+          const replyOptions = { embeds: [embed] };
+          if (embed._attachments) {
+            replyOptions.files = embed._attachments;
+            delete embed._attachments; // embedオブジェクトから一時プロパティを削除
+          }
+          await interaction.editReply(replyOptions);
         } catch (error) {
           console.error("NFT情報取得エラー:", error);
           await interaction.editReply(
@@ -347,9 +423,8 @@ client.on("interactionCreate", async (interaction) => {
               inline: false,
             },
             {
-              name: "/tokeninfo <address> <tokenid>",
-              value:
-                "NFTトークンの情報を取得します\n例: `/tokeninfo 0xc60270e1de7a9ffec6cf0056a5f6918f0f11199c 14`",
+              name: "/tokeninfo <tokenid>",
+              value: "NFTトークンの情報を取得します\n例: `/tokeninfo 14`",
               inline: false,
             },
             {
