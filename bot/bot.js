@@ -349,7 +349,7 @@ client.on("interactionCreate", async (interaction) => {
             {
               name: "/tokeninfo <address> <tokenid>",
               value:
-                "NFTトークンの情報を取得します\n例: `/tokeninfo 0x72A02d559435319bD77462690E202a28c2Ba8623 26`",
+                "NFTトークンの情報を取得します\n例: `/tokeninfo 0xc60270e1de7a9ffec6cf0056a5f6918f0f11199c 14`",
               inline: false,
             },
             {
