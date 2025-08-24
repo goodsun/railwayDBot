@@ -482,7 +482,8 @@ client.on("interactionCreate", async (interaction) => {
         // Discord IDとアバター情報を取得
         const discordId = interaction.user.id;
         // サーバーニックネームを優先して取得、なければユーザー名を使用
-        const discordUsername = interaction.member?.displayName || interaction.user.username;
+        // 注: GuildMembersインテントが無効の場合、interaction.memberがnullになる可能性があります
+        const discordUsername = interaction.member?.nickname || interaction.user.username;
         const avatarHash = interaction.user.avatar;
 
         // アバターURLを生成（Discord CDN）

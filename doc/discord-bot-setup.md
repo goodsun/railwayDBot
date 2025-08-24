@@ -49,8 +49,10 @@
 #### Privileged Gateway Intents
 必要に応じて以下を有効化：
 - **Presence Intent**: ユーザーのオンライン状態を取得
-- **Server Members Intent**: サーバーメンバー情報を取得
+- **Server Members Intent**: サーバーメンバー情報を取得（ニックネーム取得に必要）
 - **Message Content Intent**: メッセージ内容を読み取る
+
+⚠️ **注意**: Server Members Intentは100サーバー以上で使用する場合、Discordの承認が必要です。
 
 ### Bot設定のベストプラクティス
 
@@ -165,10 +167,16 @@ PORT=3000
 
 #### Intentsエラー
 ```
-Error: Disallowed Intents
+Error: Used disallowed intents
 ```
 - Developer Portalで必要なIntentsが有効化されているか確認
 - コード内で正しいIntentsを指定しているか確認
+- 特に`Server Members Intent`を使用する場合は、Developer PortalのBot設定で明示的に有効化が必要
+
+**解決方法**:
+1. Discord Developer Portal → Bot → Privileged Gateway Intents
+2. 必要なIntentをONにする
+3. 「Save Changes」をクリック
 
 ### セキュリティのベストプラクティス
 
