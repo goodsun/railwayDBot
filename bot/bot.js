@@ -465,14 +465,16 @@ client.on("interactionCreate", async (interaction) => {
         break;
 
       case "register":
+        // まず即座にdeferReplyで応答（タイムアウト回避）
+        await interaction.deferReply({ ephemeral: true });
+        
         const userAddress = interaction.options.getString("address");
 
         // アドレスの検証
         if (!ethers.isAddress(userAddress)) {
-          await interaction.reply({
+          await interaction.editReply({
             content:
               "❌ 無効なEOAアドレスです。正しいアドレスを入力してください。",
-            ephemeral: true,
           });
           return;
         }
@@ -544,9 +546,8 @@ client.on("interactionCreate", async (interaction) => {
           timestamp: new Date(),
         };
 
-        await interaction.reply({
+        await interaction.editReply({
           embeds: [registerEmbed],
-          ephemeral: true, // 本人のみに表示
         });
         break;
     }
