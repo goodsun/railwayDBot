@@ -8,6 +8,7 @@ const {
 } = require("discord.js");
 const { ethers } = require("ethers");
 const sharp = require("sharp");
+const cheerio = require("cheerio");
 
 // RPC設定（デフォルト: Polygon Mainnet）
 const RPC_URL = process.env.RPC_URL || "https://polygon-rpc.com";
@@ -28,6 +29,40 @@ function getOpenSeaUrl(contractAddress, tokenId, chainId = 137) {
       ? "https://opensea.io/assets/matic"
       : "https://opensea.io/assets/ethereum";
   return `${baseUrl}/${contractAddress}/${tokenId}`;
+}
+
+// SVGからエフェクトレイヤーを削除する関数
+function removeEffectLayers(svgString) {
+  try {
+    const $ = cheerio.load(svgString, { xmlMode: true });
+    
+    // 一般的なエフェクトレイヤーのパターンを削除
+    // 1. filterを持つ要素を削除
+    $('[filter]').removeAttr('filter');
+    $('filter').remove();
+    
+    // 2. 特定のclass名やid名を持つエフェクトレイヤーを削除
+    $('.effect, .effects, .fx, #effect, #effects').remove();
+    
+    // 3. opacity値が低い（透明に近い）要素を削除
+    $('*').each(function() {
+      const opacity = $(this).attr('opacity');
+      if (opacity && parseFloat(opacity) < 0.3) {
+        $(this).remove();
+      }
+    });
+    
+    // 4. blend-modeを持つ要素を削除
+    $('[style*="mix-blend-mode"], [style*="blend-mode"]').remove();
+    
+    // 5. 特定のフィルター効果を削除
+    $('feGaussianBlur, feBlend, feColorMatrix, feComposite').parent().remove();
+    
+    return $.xml();
+  } catch (error) {
+    console.error("SVGエフェクト削除エラー:", error);
+    return svgString; // エラー時は元のSVGを返す
+  }
 }
 
 // ERC721 ABI
@@ -318,8 +353,13 @@ client.on("interactionCreate", async (interaction) => {
                     // SVGの場合はPNGに変換（ドット絵風）
                     if (mimeType.includes("svg") || extension === "svg") {
                       try {
+                        // SVGからエフェクトレイヤーを削除
+                        const svgString = buffer.toString('utf-8');
+                        const cleanedSvg = removeEffectLayers(svgString);
+                        const cleanedBuffer = Buffer.from(cleanedSvg, 'utf-8');
+                        
                         // まず元のSVGサイズでラスタライズ（ピクセルパーフェクト）
-                        const tempBuffer = await sharp(buffer, {
+                        const tempBuffer = await sharp(cleanedBuffer, {
                           density: 72,
                           // SVGレンダリング時にアンチエイリアスを無効化
                           unlimited: true,
