@@ -459,34 +459,50 @@
       // 動的ガス推定関数
       async function estimateGasForSetUserInfo(contract, memberName, discordId, avatarImage) {
         try {
-          // 基本ガス量
-          const baseGas = 100000;
+          // まずcontract.estimateGasを試みる
+          try {
+            const estimated = await contract.estimateGas.setUserInfo(
+              memberName,
+              discordId,
+              avatarImage
+            );
+            // ネットワーク混雑時のために1.5倍のバッファを追加
+            const withBuffer = estimated.mul(150).div(100);
+            console.log(`Contract estimated gas: ${estimated.toString()}, with buffer: ${withBuffer.toString()}`);
+            return withBuffer;
+          } catch (estimateError) {
+            console.log("Contract estimateGas failed, using manual calculation:", estimateError);
+          }
           
-          // 画像サイズに基づく追加ガス（1文字あたり約68ガス）
+          // 手動計算にフォールバック
+          // 基本ガス量（ネットワーク状態を考慮して増加）
+          const baseGas = 150000;
+          
+          // 画像サイズに基づく追加ガス（1文字あたり約100ガス - 混雑時を考慮）
           const dataSize = memberName.length + discordId.length + avatarImage.length;
-          const dataGas = dataSize * 68;
+          const dataGas = dataSize * 100;
           
-          // 画像サイズの2倍のバッファを追加
-          const imageBuffer = avatarImage.length * 68 * 2;
+          // 画像サイズの3倍のバッファを追加（ネットワーク混雑対策）
+          const imageBuffer = avatarImage.length * 100 * 3;
           
           // 推定ガス量を計算
           const estimatedGas = baseGas + dataGas + imageBuffer;
           
-          console.log(`Gas estimation:
+          console.log(`Manual gas estimation:
             Base gas: ${baseGas}
             Data size: ${dataSize} chars
             Data gas: ${dataGas}
-            Image buffer (2x): ${imageBuffer}
+            Image buffer (3x): ${imageBuffer}
             Total estimated: ${estimatedGas}`);
           
           // 最大ガスリミットを設定（安全のため）
-          const maxGasLimit = 2000000;
+          const maxGasLimit = 3000000;
           return Math.min(estimatedGas, maxGasLimit);
           
         } catch (error) {
           console.error("Gas estimation failed:", error);
-          // フォールバック値を返す
-          return 800000;
+          // より高いフォールバック値を返す
+          return 1500000;
         }
       }
 
