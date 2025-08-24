@@ -55,7 +55,7 @@ const ERC721_ABI = [
 
 // Discord Botクライアントの作成
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
 
 // スラッシュコマンドの定義
@@ -479,7 +479,8 @@ client.on("interactionCreate", async (interaction) => {
 
         // Discord IDとアバター情報を取得
         const discordId = interaction.user.id;
-        const discordUsername = interaction.user.username;
+        // サーバーニックネームを優先して取得、なければユーザー名を使用
+        const discordUsername = interaction.member?.displayName || interaction.user.username;
         const avatarHash = interaction.user.avatar;
 
         // アバターURLを生成（Discord CDN）
