@@ -8,7 +8,6 @@ const {
 } = require("discord.js");
 const { ethers } = require("ethers");
 const sharp = require("sharp");
-const cheerio = require("cheerio");
 
 // RPC設定（デフォルト: Polygon Mainnet）
 const RPC_URL = process.env.RPC_URL || "https://polygon-rpc.com";
@@ -34,31 +33,12 @@ function getOpenSeaUrl(contractAddress, tokenId, chainId = 137) {
 // SVGからエフェクトレイヤーを削除する関数
 function removeEffectLayers(svgString) {
   try {
-    const $ = cheerio.load(svgString, { xmlMode: true });
+    // 最後のimageタグを削除（最前面のエフェクトレイヤー）
+    // </svg>の前にある最後の<image>タグを見つけて削除
+    const lastImageRegex = /<image[^>]*>(?!.*<image[^>]*>).*?<\/svg>/s;
+    const modifiedSvg = svgString.replace(lastImageRegex, '</svg>');
     
-    // 一般的なエフェクトレイヤーのパターンを削除
-    // 1. filterを持つ要素を削除
-    $('[filter]').removeAttr('filter');
-    $('filter').remove();
-    
-    // 2. 特定のclass名やid名を持つエフェクトレイヤーを削除
-    $('.effect, .effects, .fx, #effect, #effects').remove();
-    
-    // 3. opacity値が低い（透明に近い）要素を削除
-    $('*').each(function() {
-      const opacity = $(this).attr('opacity');
-      if (opacity && parseFloat(opacity) < 0.3) {
-        $(this).remove();
-      }
-    });
-    
-    // 4. blend-modeを持つ要素を削除
-    $('[style*="mix-blend-mode"], [style*="blend-mode"]').remove();
-    
-    // 5. 特定のフィルター効果を削除
-    $('feGaussianBlur, feBlend, feColorMatrix, feComposite').parent().remove();
-    
-    return $.xml();
+    return modifiedSvg;
   } catch (error) {
     console.error("SVGエフェクト削除エラー:", error);
     return svgString; // エラー時は元のSVGを返す
